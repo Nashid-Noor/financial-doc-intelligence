@@ -146,18 +146,6 @@ pytest tests/ -v
 pytest tests/ --cov=src --cov-report=html
 ```
 
-### Code Formatting
-
-```bash
-# Format code
-black src/ tests/
-
-# Sort imports
-isort src/ tests/
-
-# Type checking
-mypy src/
-```
 
 ## Docker Deployment
 
