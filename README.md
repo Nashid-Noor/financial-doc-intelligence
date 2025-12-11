@@ -10,18 +10,8 @@ A RAG (Retrieval-Augmented Generation) system specialized for SEC filings and co
 - **Table-Aware Processing:** Preserves table structure during chunking to allow for accurate data extraction.
 - **Citations:** Every answer includes page numbers and source links.
 
-
-
-
-
-
 ## Quick Start
 
-### Prerequisites
-
-- Python 3.10+
-- CUDA-capable GPU (recommended for fine-tuning)
-- 16GB+ RAM
 
 ### Installation
 
