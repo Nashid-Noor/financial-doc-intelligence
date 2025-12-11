@@ -8,53 +8,17 @@ A RAG (Retrieval-Augmented Generation) system specialized for SEC filings and co
 
 ## Key Features
 
-- **Specialized Financial QA:** Fine-tuned Llama 3.1 8B on 25K+ financial pairs (FinQA/TAT-QA).
+- **Fine-Tuning Support:** Capable of fine-tuning Llama 3.1 8B on financial datasets (tested with FinQA/TAT-QA formats).
 - **Hybrid Search:** Combines dense vectors (Qdrant) with sparse keyword matching (BM25) to catch both semantic meaning and specific terms.
 - **Table-Aware Processing:** Preserves table structure during chunking to allow for accurate data extraction.
 - **Citations:** Every answer includes page numbers and source links.
 
 
-## 📊 Performance
 
-| Metric | Score |
-|--------|-------|
-| Exact Match | 72.3% |
-| F1 Score | 84.1% |
-| Numerical Accuracy | 81.5% |
-| Retrieval Precision@5 | 87.2% |
-| Citation Accuracy | 78.4% |
 
-## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Streamlit UI                              │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       FastAPI Backend                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
-│  │   Upload     │  │    Query     │  │     Document         │  │
-│  │   Endpoint   │  │   Endpoint   │  │     Management       │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
-        ▼                       ▼                       ▼
-┌──────────────┐      ┌──────────────┐      ┌──────────────────┐
-│  PDF Parser  │      │   Hybrid     │      │   Fine-tuned     │
-│  & Chunker   │      │  Retriever   │      │   Llama Model    │
-└──────────────┘      └──────────────┘      └──────────────────┘
-        │                   │ │                       │
-        ▼                   ▼ ▼                       ▼
-┌──────────────┐   ┌────────┐ ┌────────┐   ┌──────────────────┐
-│  Embeddings  │   │ Qdrant │ │  BM25  │   │   Numerical      │
-│  (BGE-large) │   │ Vector │ │ Index  │   │   Reasoning      │
-└──────────────┘   └────────┘ └────────┘   └──────────────────┘
-```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -81,7 +45,18 @@ pip install -r requirements.txt
 
 ### Running the Application
 
-#### 1. Start the API Server
+#### Option 1: Quick Start (Recommended)
+The easiest way to run everything (API + UI) is using the helper script:
+
+```bash
+# Make executable first
+chmod +x run.sh
+
+# Start everything
+./run.sh all
+```
+
+#### Option 2: Manual Start
 
 ```bash
 cd src/api
@@ -100,47 +75,7 @@ streamlit run ui/streamlit_app.py
 - **API Docs**: http://localhost:8000/docs
 - **API ReDoc**: http://localhost:8000/redoc
 
-## 📁 Project Structure
-
-```
-financial-doc-intelligence/
-├── data/
-│   ├── raw/
-│   │   ├── filings/          # Raw SEC filings
-│   │   └── datasets/         # Training datasets
-│   ├── processed/
-│   │   ├── chunks/           # Processed document chunks
-│   │   └── embeddings/       # Vector embeddings
-│   └── qa_pairs/             # Q&A training data
-├── src/
-│   ├── data_processing/
-│   │   ├── pdf_parser.py     # PDF extraction
-│   │   ├── chunker.py        # Document chunking
-│   │   └── sec_downloader.py # SEC filing downloader
-│   ├── retrieval/
-│   │   ├── embedder.py       # Embedding generation
-│   │   ├── vector_store.py   # Qdrant operations
-│   │   └── hybrid_search.py  # Hybrid retrieval
-│   ├── model/
-│   │   ├── fine_tune.py      # QLoRA fine-tuning
-│   │   └── inference.py      # Model inference
-│   ├── reasoning/
-│   │   ├── numerical.py      # Numerical reasoning
-│   │   └── citations.py      # Citation extraction
-│   └── api/
-│       └── app.py            # FastAPI application
-├── ui/
-│   └── streamlit_app.py      # Streamlit interface
-├── configs/
-│   ├── model_config.yaml     # Model configuration
-│   └── rag_config.yaml       # RAG configuration
-├── tests/
-├── notebooks/
-├── requirements.txt
-└── README.md
-```
-
-## 🔧 Configuration
+## Configuration
 
 ### RAG Configuration (`configs/rag_config.yaml`)
 
@@ -173,49 +108,17 @@ training:
   learning_rate: 2e-4
 ```
 
-## 📚 API Reference
+## Training Data Compatibility
 
-### Upload Document
+The platform is designed to work with standard financial datasets:
 
-```bash
-POST /upload
-Content-Type: multipart/form-data
+| Dataset | Description |
+|---------|-------------|
+| FinQA | Numerical reasoning over financial reports |
+| TAT-QA | Hybrid tabular and textual Q&A |
+| Custom | Your own SEC filing Q&A pairs |
 
-curl -X POST "http://localhost:8000/upload" \
-  -F "file=@apple_10k_2023.pdf"
-```
-
-### Query Documents
-
-```bash
-POST /query
-Content-Type: application/json
-
-{
-  "question": "What was Apple's revenue in 2023?",
-  "top_k": 10,
-  "include_citations": true
-}
-```
-
-### List Documents
-
-```bash
-GET /documents
-```
-
-## 🧪 Training Data
-
-The model is fine-tuned on:
-
-| Dataset | Examples | Description |
-|---------|----------|-------------|
-| FinQA | 8,281 | Numerical reasoning over financial reports |
-| TAT-QA | 16,552 | Hybrid tabular and textual Q&A |
-| ConvFinQA | 3,892 | Conversational financial Q&A |
-| Custom | 500 | SEC filing specific Q&A pairs |
-
-## 🔬 Evaluation
+## Evaluation
 
 Run the evaluation suite:
 
@@ -226,7 +129,7 @@ python -m pytest tests/ -v
 python src/evaluation/run_eval.py --dataset finqa --split test
 ```
 
-## 📈 Example Queries
+## Example Queries
 
 1. **Revenue Questions**
    - "What was the total revenue for fiscal year 2023?"
@@ -244,7 +147,7 @@ python src/evaluation/run_eval.py --dataset finqa --split test
    - "Compare Apple's and Microsoft's R&D spending."
    - "Which company has higher operating margins?"
 
-## 🛠️ Development
+## Development
 
 ### Running Tests
 
@@ -269,7 +172,7 @@ isort src/ tests/
 mypy src/
 ```
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ```bash
 # Build image
@@ -279,38 +182,9 @@ docker build -t financial-doc-intelligence .
 docker run -p 8000:8000 -p 8501:8501 financial-doc-intelligence
 ```
 
-## 📝 Future Work
 
-- [ ] Support for additional document types (8-K, proxy statements)
-- [ ] Multi-modal analysis (charts, graphs)
-- [ ] Time-series analysis across quarters
-- [ ] Real-time SEC filing monitoring
-- [ ] Custom fine-tuning interface
-- [ ] Export to Excel/PDF reports
 
-## 🤝 Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
-## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- [Hugging Face](https://huggingface.co/) for model hosting and transformers library
-- [Qdrant](https://qdrant.tech/) for vector database
-- [FinQA](https://github.com/czyssrs/FinQA) dataset authors
-- SEC EDGAR for public filing access
-
-## 📧 Contact
-
-For questions or feedback, please open an issue or contact [your-email@example.com](mailto:your-email@example.com).
-
----
-
-**Built with ❤️ for the financial AI community**
