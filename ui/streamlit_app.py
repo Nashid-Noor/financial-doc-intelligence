@@ -55,11 +55,11 @@ def api_request(endpoint: str, method: str = "GET", **kwargs) -> Dict:
 def format_confidence(confidence: float) -> str:
     """Format confidence score with color coding."""
     if confidence >= 0.8:
-        return f"🟢 High ({confidence:.0%})"
+        return f"High ({confidence:.0%})"
     elif confidence >= 0.5:
-        return f"🟡 Medium ({confidence:.0%})"
+        return f"Medium ({confidence:.0%})"
     else:
-        return f"🔴 Low ({confidence:.0%})"
+        return f"Low ({confidence:.0%})"
 
 
 def format_citation(citation: Dict) -> str:
@@ -85,7 +85,7 @@ def format_citation(citation: Dict) -> str:
 
 st.set_page_config(
     page_title="Financial Document Intelligence",
-    page_icon="📊",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -143,7 +143,7 @@ if "documents" not in st.session_state:
 # ============================================================================
 
 with st.sidebar:
-    st.markdown("## 📄 Documents")
+    st.markdown("## Documents")
     
     # File uploader
     uploaded_file = st.file_uploader(
@@ -153,13 +153,13 @@ with st.sidebar:
     )
     
     if uploaded_file is not None:
-        if st.button("📤 Process Document", use_container_width=True):
+        if st.button("Process Document", use_container_width=True):
             with st.spinner("Processing document..."):
                 files = {"file": (uploaded_file.name, uploaded_file, "application/pdf")}
                 result = api_request("/upload", method="POST", files=files)
                 
                 if result:
-                    st.success(f"✅ {result['message']}")
+                    st.success(f"{result['message']}")
                     st.info(f"Processing time: {result['processing_time']:.2f}s")
                     # Refresh document list
                     st.session_state.documents = api_request("/documents") or []
@@ -170,7 +170,7 @@ with st.sidebar:
     st.markdown("### Available Documents")
     
     # Refresh button
-    if st.button("🔄 Refresh", use_container_width=True):
+    if st.button("Refresh", use_container_width=True):
         st.session_state.documents = api_request("/documents") or []
     
     # Display documents
@@ -178,14 +178,14 @@ with st.sidebar:
     
     if docs:
         for doc in docs:
-            with st.expander(f"📑 {doc.get('filename', 'Unknown')[:30]}..."):
+            with st.expander(f"{doc.get('filename', 'Unknown')[:30]}..."):
                 st.write(f"**Company:** {doc.get('company', 'N/A')}")
                 st.write(f"**Type:** {doc.get('filing_type', 'N/A')}")
                 st.write(f"**Year:** {doc.get('fiscal_year', 'N/A')}")
                 st.write(f"**Pages:** {doc.get('total_pages', 'N/A')}")
                 st.write(f"**Chunks:** {doc.get('total_chunks', 'N/A')}")
                 
-                if st.button("🗑️ Delete", key=f"del_{doc['document_id']}"):
+                if st.button("Delete", key=f"del_{doc['document_id']}"):
                     result = api_request(f"/documents/{doc['document_id']}", method="DELETE")
                     if result:
                         st.success("Document deleted")
@@ -196,7 +196,7 @@ with st.sidebar:
     st.divider()
     
     # System stats
-    st.markdown("### 📊 System Stats")
+    st.markdown("### System Stats")
     stats = api_request("/stats")
     if stats:
         col1, col2 = st.columns(2)
@@ -211,13 +211,13 @@ with st.sidebar:
 # ============================================================================
 
 # Header
-st.markdown('<p class="main-header">💬 Financial Document Q&A</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">Financial Document Q&A</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Ask questions about your SEC filings and financial documents</p>', unsafe_allow_html=True)
 
 st.divider()
 
 # Query settings in expander
-with st.expander("⚙️ Query Settings", expanded=False):
+with st.expander("Query Settings", expanded=False):
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -244,7 +244,7 @@ for message in st.session_state.messages:
             citations = message["citations"]
             if citations:
                 st.markdown("---")
-                st.markdown("**📚 Sources:**")
+                st.markdown("**Sources:**")
                 for i, citation in enumerate(citations, 1):
                     with st.container():
                         st.markdown(f"""
@@ -293,7 +293,7 @@ if prompt := st.chat_input("Ask about your financial documents..."):
                 # Display reasoning steps if present
                 if result.get("reasoning_steps"):
                     st.markdown("---")
-                    st.markdown("**🧮 Calculation:**")
+                    st.markdown("**Calculation:**")
                     for step in result["reasoning_steps"]:
                         st.markdown(f"- {step}")
                 
@@ -301,7 +301,7 @@ if prompt := st.chat_input("Ask about your financial documents..."):
                 citations = result.get("sources", [])
                 if citations:
                     st.markdown("---")
-                    st.markdown("**📚 Sources:**")
+                    st.markdown("**Sources:**")
                     for i, citation in enumerate(citations, 1):
                         st.markdown(f"""
                         <div class="citation-box">
@@ -334,7 +334,7 @@ if prompt := st.chat_input("Ask about your financial documents..."):
 
 # Clear chat button
 if st.session_state.messages:
-    if st.button("🗑️ Clear Chat History"):
+    if st.button("Clear Chat History"):
         st.session_state.messages = []
         st.rerun()
 
@@ -363,16 +363,16 @@ with col1:
 with col2:
     st.markdown("**Features:**")
     st.markdown("""
-    - 📊 Hybrid search (semantic + keyword)
-    - 🧮 Numerical reasoning & calculations
-    - 📚 Source citations with page numbers
-    - 🎯 Confidence scoring
+    - Hybrid search (semantic + keyword)
+    - Numerical reasoning & calculations
+    - Source citations with page numbers
+    - Confidence scoring
     """)
 
 with col3:
     st.markdown("**Supported Documents:**")
     st.markdown("""
-    - 📄 SEC 10-K Annual Reports
-    - 📄 SEC 10-Q Quarterly Reports
-    - 📄 Other financial PDFs
+    - SEC 10-K Annual Reports
+    - SEC 10-Q Quarterly Reports
+    - Other financial PDFs
     """)
