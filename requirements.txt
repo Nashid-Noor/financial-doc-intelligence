@@ -1,4 +1,5 @@
-# Financial Document Intelligence Platform - Requirementfastapi>=0.104.0
+# Financial Document Intelligence Platform - Requirements
+fastapi>=0.104.0
 uvicorn>=0.24.0
 python-multipart>=0.0.6
 huggingface_hub>=0.20.0
