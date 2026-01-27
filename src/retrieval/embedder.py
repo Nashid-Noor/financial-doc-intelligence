@@ -7,6 +7,8 @@ Generates embeddings using Hugging Face Inference API.
 
 import os
 import hashlib
+import time
+import random
 from pathlib import Path
 from typing import List, Optional
 import pickle
@@ -119,26 +121,54 @@ class FinancialEmbedder:
         # Process in batches
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            try:
-                # Use feature extraction API
-                embeddings = self.client.feature_extraction(
-                    text=batch,
-                    model=self.model_name
-                )
-                
-                if isinstance(embeddings, list):
-                    embeddings = np.array(embeddings)
-                
-                # BGE model returns normalized embeddings usually, but we can re-normalize
-                if self.normalize:
-                    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-                    embeddings = embeddings / np.maximum(norms, 1e-9)
+            
+            # Retry logic
+            max_retries = 5
+            retry_count = 0
+            backoff = 2  # Start with 2 seconds
+            
+            while retry_count < max_retries:
+                try:
+                    # Use feature extraction API
+                    embeddings = self.client.feature_extraction(
+                        text=batch,
+                        model=self.model_name
+                    )
                     
-                all_embeddings.append(embeddings)
-                
-            except Exception as e:
-                logger.error(f"Error calling HF Embedding API: {e}")
-                return np.array([])
+                    if isinstance(embeddings, list):
+                        embeddings = np.array(embeddings)
+                    
+                    # BGE model returns normalized embeddings usually, but we can re-normalize
+                    if self.normalize:
+                        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+                        embeddings = embeddings / np.maximum(norms, 1e-9)
+                        
+                    all_embeddings.append(embeddings)
+                    break # Success
+                    
+                except Exception as e:
+                    # Check if it's a client error (4xx) -> Fail fast
+                    # Except 429 (Too Many Requests), which should be retried
+                    is_client_error = False
+                    if hasattr(e, 'response') and hasattr(e.response, 'status_code'):
+                        status = e.response.status_code
+                        if 400 <= status < 500 and status != 429:
+                            is_client_error = True
+                    
+                    if is_client_error:
+                        logger.error(f"Permanent HF API Error: {e}")
+                        return np.array([])
+                        
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        logger.error(f"Error calling HF Embedding API after {max_retries} attempts: {e}")
+                        return np.array([])
+                    
+                    # Exponential backoff with jitter
+                    wait_time = backoff + random.uniform(0, 1)
+                    logger.warning(f"Embedding API error (attempt {retry_count}/{max_retries}): {e}. Retrying in {wait_time:.2f}s...")
+                    time.sleep(wait_time)
+                    backoff *= 2
         
         if not all_embeddings:
             return np.array([])
