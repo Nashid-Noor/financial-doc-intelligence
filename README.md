@@ -68,14 +68,9 @@ streamlit run ui/streamlit_app.py
 
 ```yaml
 retrieval:
-  embedding_model: "BAAI/bge-large-en-v1.5"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
   chunk_size: 512
   chunk_overlap: 50
-  
-  hybrid_search:
-    semantic_weight: 0.6
-    keyword_weight: 0.4
-    top_k: 10
 ```
 
 ### Model Configuration (`configs/model_config.yaml`)
@@ -116,23 +111,6 @@ python -m pytest tests/ -v
 python src/evaluation/run_eval.py --dataset finqa --split test
 ```
 
-## Example Queries
-
-1. **Revenue Questions**
-   - "What was the total revenue for fiscal year 2023?"
-   - "How did revenue change compared to the previous year?"
-
-2. **Numerical Reasoning**
-   - "What is the year-over-year revenue growth rate?"
-   - "Calculate the gross margin percentage."
-
-3. **Risk Analysis**
-   - "What are the main risk factors mentioned?"
-   - "How does the company address cybersecurity risks?"
-
-4. **Comparative Analysis**
-   - "Compare Apple's and Microsoft's R&D spending."
-   - "Which company has higher operating margins?"
 
 ## Development
 

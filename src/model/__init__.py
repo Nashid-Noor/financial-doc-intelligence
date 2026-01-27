@@ -7,11 +7,11 @@ This module handles:
 - Model inference and generation
 """
 
-from .fine_tune import FinancialQATrainer, TrainingConfig
+# from .fine_tune import FinancialQATrainer, TrainingConfig
 from .inference import FinancialQAModel
 
 __all__ = [
-    'FinancialQATrainer',
-    'TrainingConfig', 
+    # 'FinancialQATrainer',
+    # 'TrainingConfig', 
     'FinancialQAModel'
 ]

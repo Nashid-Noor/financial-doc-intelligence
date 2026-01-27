@@ -30,9 +30,9 @@ def api_request(endpoint: str, method: str = "GET", **kwargs) -> Dict:
             response = requests.get(url, timeout=30)
         elif method == "POST":
             if "files" in kwargs:
-                response = requests.post(url, files=kwargs["files"], timeout=60)
+                response = requests.post(url, files=kwargs["files"], timeout=180)
             else:
-                response = requests.post(url, json=kwargs.get("json"), timeout=60)
+                response = requests.post(url, json=kwargs.get("json"), timeout=180)
         elif method == "DELETE":
             response = requests.delete(url, timeout=30)
         else:
@@ -84,7 +84,7 @@ def format_citation(citation: Dict) -> str:
 # ============================================================================
 
 st.set_page_config(
-    page_title="Financial Document Intelligence",
+    page_title="Document Intelligence",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded"
@@ -211,28 +211,14 @@ with st.sidebar:
 # ============================================================================
 
 # Header
-st.markdown('<p class="main-header">Financial Document Q&A</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Ask questions about your SEC filings and financial documents</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">Document Intelligence</p>', unsafe_allow_html=True)
+
 
 st.divider()
 
-# Query settings in expander
-with st.expander("Query Settings", expanded=False):
-    col1, col2, col3 = st.columns(3)
+
     
-    with col1:
-        top_k = st.slider("Number of sources", 1, 20, 10)
-    with col2:
-        include_citations = st.checkbox("Include citations", value=True)
-    with col3:
-        include_reasoning = st.checkbox("Show reasoning", value=True)
-    
-    # Filter options
-    col4, col5 = st.columns(2)
-    with col4:
-        company_filter = st.text_input("Filter by company (ticker)", placeholder="e.g., AAPL")
-    with col5:
-        filing_filter = st.selectbox("Filter by filing type", ["All", "10-K", "10-Q"])
+
 
 # Display chat history
 for message in st.session_state.messages:
@@ -260,7 +246,7 @@ for message in st.session_state.messages:
             st.caption(f"Confidence: {format_confidence(message['confidence'])}")
 
 # Chat input
-if prompt := st.chat_input("Ask about your financial documents..."):
+if prompt := st.chat_input("Ask about your documents..."):
     # Add user message to chat
     st.session_state.messages.append({"role": "user", "content": prompt})
     
@@ -273,15 +259,12 @@ if prompt := st.chat_input("Ask about your financial documents..."):
             # Build request
             request_data = {
                 "question": prompt,
-                "top_k": top_k,
-                "include_citations": include_citations,
-                "include_reasoning": include_reasoning
+                "top_k": 5,
+                "include_citations": True,
+                "include_reasoning": True
             }
             
-            if company_filter:
-                request_data["company"] = company_filter.upper()
-            if filing_filter != "All":
-                request_data["filing_type"] = filing_filter
+
             
             # Make request
             result = api_request("/query", method="POST", json=request_data)
@@ -339,40 +322,4 @@ if st.session_state.messages:
         st.rerun()
 
 
-# ============================================================================
-# Footer
-# ============================================================================
 
-st.divider()
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("**Example Questions:**")
-    examples = [
-        "What was the total revenue last year?",
-        "What are the main risk factors?",
-        "How did gross margin change year-over-year?",
-        "What is the debt-to-equity ratio?"
-    ]
-    for example in examples:
-        if st.button(example, key=f"ex_{example[:20]}"):
-            st.session_state.messages.append({"role": "user", "content": example})
-            st.rerun()
-
-with col2:
-    st.markdown("**Features:**")
-    st.markdown("""
-    - Hybrid search (semantic + keyword)
-    - Numerical reasoning & calculations
-    - Source citations with page numbers
-    - Confidence scoring
-    """)
-
-with col3:
-    st.markdown("**Supported Documents:**")
-    st.markdown("""
-    - SEC 10-K Annual Reports
-    - SEC 10-Q Quarterly Reports
-    - Other financial PDFs
-    """)
