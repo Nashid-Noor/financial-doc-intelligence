@@ -14,12 +14,25 @@ from datetime import datetime
 import streamlit as st
 
 # Configuration
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
+def check_api_health(retries=5, delay=2):
+    """Check if API is running with retries."""
+    health_url = f"{API_URL}/health"
+    for i in range(retries):
+        try:
+            response = requests.get(health_url, timeout=5)
+            if response.status_code == 200:
+                return True
+        except requests.exceptions.RequestException:
+            pass
+        time.sleep(delay)
+    return False
 
 def api_request(endpoint: str, method: str = "GET", **kwargs) -> Dict:
     """Make API request with error handling."""
@@ -82,6 +95,14 @@ def format_citation(citation: Dict) -> str:
 # ============================================================================
 # Page Configuration
 # ============================================================================
+
+# Wait for API to come online
+if not check_api_health():
+    st.warning("Waiting for API to start...")
+    # One final long wait
+    time.sleep(5) 
+    if not check_api_health(retries=1):
+         st.error("Cannot connect to API. Please ensure the server is running.")
 
 st.set_page_config(
     page_title="Document Intelligence",
