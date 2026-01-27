@@ -1,8 +1,8 @@
 """
 Streamlit UI
-Financial Document Intelligence Platform
+Document Intelligence Platform
 
-Professional chat interface for financial document Q&A.
+Professional chat interface for document Q&A.
 """
 
 import os
@@ -147,9 +147,9 @@ with st.sidebar:
     
     # File uploader
     uploaded_file = st.file_uploader(
-        "Upload SEC Filing",
+        "Upload Document",
         type=["pdf"],
-        help="Upload 10-K or 10-Q filings in PDF format"
+        help="Upload documents in PDF format"
     )
     
     if uploaded_file is not None:

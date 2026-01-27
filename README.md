@@ -1,14 +1,13 @@
-# Financial Document Intelligence Platform
+# Document Intelligence Platform
 
 
-A RAG (Retrieval-Augmented Generation) system specialized for SEC filings and complex financial documents. Designed to handle tabular data, numerical reasoning, and cross-document analysis.
+A RAG (Retrieval-Augmented Generation) system for intelligent document analysis. Designed to handle complex documents, tables, and reasoning.
 
 ## Key Features
 
-- **Fine-Tuning Support:** Capable of fine-tuning Llama 3.1 8B on financial datasets (tested with FinQA/TAT-QA formats).
-- **Hybrid Search:** Combines dense vectors (Qdrant) with sparse keyword matching (BM25) to catch both semantic meaning and specific terms.
-- **Table-Aware Processing:** Preserves table structure during chunking to allow for accurate data extraction.
-- **Citations:** Every answer includes page numbers and source links.
+- **RAG Architecture:** Retrieves relevant chunks from financial documents to answer user queries.
+- **Hybrid Search:** Combines semantic search (MiniLM) with keyword matching (BM25) for precision.
+- **Citations:** Answers include specific page numbers and source text snippets.
 
 ## Quick Start
 
@@ -17,7 +16,7 @@ A RAG (Retrieval-Augmented Generation) system specialized for SEC filings and co
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/financial-doc-intelligence.git
+git clone https://github.com/Nashid-Noor/financial-doc-intelligence.git
 cd financial-doc-intelligence
 
 # Create virtual environment
@@ -28,6 +27,10 @@ source venv/bin/activate  # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Setup Environment
+cp .env.example .env
+# Edit .env and add your HF_API_KEY
 ```
 
 ### Running the Application
@@ -73,43 +76,8 @@ retrieval:
   chunk_overlap: 50
 ```
 
-### Model Configuration (`configs/model_config.yaml`)
 
-```yaml
-model:
-  name: "meta-llama/Llama-3.1-8B-Instruct"
-  
-lora:
-  r: 16
-  lora_alpha: 32
-  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
 
-training:
-  num_epochs: 3
-  batch_size: 4
-  learning_rate: 2e-4
-```
-
-## Training Data Compatibility
-
-The platform is designed to work with standard financial datasets:
-
-| Dataset | Description |
-|---------|-------------|
-| FinQA | Numerical reasoning over financial reports |
-| TAT-QA | Hybrid tabular and textual Q&A |
-| Custom | Your own SEC filing Q&A pairs |
-
-## Evaluation
-
-Run the evaluation suite:
-
-```bash
-python -m pytest tests/ -v
-
-# Run specific evaluation
-python src/evaluation/run_eval.py --dataset finqa --split test
-```
 
 
 ## Development
@@ -134,6 +102,13 @@ docker build -t financial-doc-intelligence .
 # Run container
 docker run -p 8000:8000 -p 8501:8501 financial-doc-intelligence
 ```
+
+### Render Deployment
+
+The project includes a `render.yaml` file for easy deployment on [Render.com](https://render.com).
+1. Create a Key-Value Secret file or simple environment variable for `HF_API_KEY`.
+2. Connect your repository to Render.
+3. Select "Web Service" and use the Docker runtime.
 
 
 

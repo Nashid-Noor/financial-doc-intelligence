@@ -23,16 +23,15 @@ class GenerationConfig:
 class FinancialQAModel:
     """Wrapper for Hugging Face Inference API."""
     
-    SYSTEM_PROMPT = """You are a financial analyst AI assistant specialized in analyzing SEC filings (10-K and 10-Q reports).
-
-Your task is to answer questions about financial documents accurately. Follow these guidelines:
-- Be precise with numerical values
-- Always cite the source document, page, and section when available
+    SYSTEM_PROMPT = """You are an intelligent document analysis assistant.
+    
+Your task is to answer questions about the provided documents accurately. Follow these guidelines:
+- Be precise with facts and numbers
+- Always cite the source document and page number
 - If calculation is required, show your reasoning step by step
 - If information is not available in the context, say so clearly
-- Use professional financial terminology
 
-Answer the question based on the provided context."""
+Answer the question based strictly on the provided context."""
 
     def __init__(self,
                  model_path: str = "meta-llama/Meta-Llama-3-8B-Instruct",
