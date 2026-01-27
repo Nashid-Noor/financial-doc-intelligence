@@ -3,72 +3,22 @@
 
 # Base model settings
 model:
-  name: "meta-llama/Llama-3.1-8B-Instruct"
-  dtype: "float16"
-  device_map: "auto"
-  trust_remote_code: true
+  name: "meta-llama/Meta-Llama-3-8B-Instruct"  # Hugging Face Model ID
+  api_provider: "huggingface"
 
-# Quantization settings (for QLoRA)
-quantization:
-  load_in_4bit: true
-  bnb_4bit_compute_dtype: "float16"
-  bnb_4bit_quant_type: "nf4"
-  bnb_4bit_use_double_quant: true
-
-# LoRA configuration
-lora:
-  r: 16
-  lora_alpha: 32
-  lora_dropout: 0.05
-  target_modules:
-    - "q_proj"
-    - "k_proj"
-    - "v_proj"
-    - "o_proj"
-    - "gate_proj"
-    - "up_proj"
-    - "down_proj"
-  bias: "none"
-  task_type: "CAUSAL_LM"
-
-# Training configuration
-training:
-  output_dir: "./models/finqa-llama-3.1-8b"
-  num_train_epochs: 3
-  per_device_train_batch_size: 4
-  per_device_eval_batch_size: 4
-  gradient_accumulation_steps: 4
-  gradient_checkpointing: true
-  learning_rate: 2.0e-4
-  weight_decay: 0.01
-  warmup_steps: 100
-  max_grad_norm: 0.3
-  lr_scheduler_type: "cosine"
-  logging_steps: 10
-  save_steps: 500
-  eval_steps: 500
-  save_total_limit: 3
-  load_best_model_at_end: true
-  metric_for_best_model: "eval_loss"
-  greater_is_better: false
-  fp16: true
-  optim: "paged_adamw_32bit"
-  report_to: "wandb"
-  
-# Data configuration
-data:
-  max_length: 2048
-  pad_to_max_length: false
-  train_split: 0.8
-  val_split: 0.1
-  test_split: 0.1
-  seed: 42
-
-# Inference configuration
-inference:
+# Generation settings
+generation:
   max_new_tokens: 512
   temperature: 0.1
   top_p: 0.95
   top_k: 50
   do_sample: false
   repetition_penalty: 1.1
+
+# Data configuration (for evaluation/testing)
+data:
+  max_length: 2048
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  seed: 42

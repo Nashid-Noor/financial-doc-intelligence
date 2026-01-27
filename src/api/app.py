@@ -16,6 +16,10 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from loguru import logger
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
@@ -53,7 +57,6 @@ class CitationResponse(BaseModel):
 
 
 class QueryResponse(BaseModel):
-    """Response model for document queries."""
     answer: str
     sources: List[CitationResponse]
     confidence: float
@@ -76,7 +79,6 @@ class DocumentInfo(BaseModel):
 
 
 class UploadResponse(BaseModel):
-    """Response model for document upload."""
     document_id: str
     filename: str
     status: str
@@ -127,7 +129,8 @@ class AppState:
     @property
     def embedder(self) -> FinancialEmbedder:
         if self._embedder is None:
-            self._embedder = FinancialEmbedder()
+            # Force MiniLM usage to align with config
+            self._embedder = FinancialEmbedder(model_name="sentence-transformers/all-MiniLM-L6-v2")
         return self._embedder
     
     @property
@@ -148,6 +151,12 @@ class AppState:
             )
         return self._retriever
     
+    @property
+    def qa_model(self) -> FinancialQAModel:
+        if self._qa_model is None:
+            self._qa_model = FinancialQAModel()
+        return self._qa_model
+
     @property
     def numerical_reasoner(self) -> NumericalReasoner:
         if self._numerical_reasoner is None:

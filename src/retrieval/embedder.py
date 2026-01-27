@@ -2,61 +2,42 @@
 Embedding Generation Module
 Financial Document Intelligence Platform
 
-Generates embeddings for document chunks and queries using
-sentence transformers, with batching and caching support.
+Generates embeddings using Hugging Face Inference API.
 """
 
 import os
 import hashlib
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 import pickle
-
 import numpy as np
 from loguru import logger
+from huggingface_hub import InferenceClient
 
-try:
-    from sentence_transformers import SentenceTransformer
-    HAS_SENTENCE_TRANSFORMERS = True
-except ImportError:
-    HAS_SENTENCE_TRANSFORMERS = False
-    logger.warning("sentence-transformers not installed. Using mock embedder.")
-
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
 from data_processing.chunker import Chunk
-
 
 class FinancialEmbedder:
     """
-    Generate embeddings for financial documents.
-    
-    Uses BGE-large or similar embedding models optimized for
-    retrieval tasks. Supports batch processing and caching.
+    Generate embeddings for financial documents using HF API.
     """
     
     # Default model for financial document embeddings
-    DEFAULT_MODEL = "BAAI/bge-large-en-v1.5"
+    DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
     
     # Instruction prefix for BGE models (improves retrieval)
     QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
     
     def __init__(self,
                  model_name: str = None,
-                 device: str = None,
                  cache_dir: Optional[str] = None,
+                 api_key: str = None,
                  normalize_embeddings: bool = True):
         """
         Initialize the embedder.
-        
-        Args:
-            model_name: Name of the sentence-transformer model
-            device: Device to run on ('cuda', 'cpu', or None for auto)
-            cache_dir: Directory to cache embeddings
-            normalize_embeddings: Whether to L2-normalize embeddings
         """
         self.model_name = model_name or self.DEFAULT_MODEL
         self.normalize = normalize_embeddings
+        self.api_key = api_key or os.getenv("HF_API_KEY")
         
         if cache_dir:
             self.cache_dir = Path(cache_dir)
@@ -64,31 +45,19 @@ class FinancialEmbedder:
         else:
             self.cache_dir = None
         
-        # Load the model
-        if HAS_SENTENCE_TRANSFORMERS:
-            logger.info(f"Loading embedding model: {self.model_name}")
-            self.model = SentenceTransformer(self.model_name, device=device)
-            self.embedding_dim = self.model.get_sentence_embedding_dimension()
-            logger.info(f"Model loaded. Embedding dimension: {self.embedding_dim}")
-        else:
-            logger.warning("Using mock embedder - install sentence-transformers for real embeddings")
-            self.model = None
-            self.embedding_dim = 1024  # Default for BGE-large
-    
+        if not self.api_key:
+            logger.warning("HF_API_KEY not found. Embedding generation might fail.")
+            
+        self.client = InferenceClient(token=self.api_key)
+        self.embedding_dim = 384  # Default for MiniLM
+        logger.info(f"Initialized HF Embedder for {self.model_name}")
+
     def encode_chunks(self,
                       chunks: List[Chunk],
                       batch_size: int = 32,
                       show_progress: bool = True) -> np.ndarray:
         """
         Generate embeddings for document chunks.
-        
-        Args:
-            chunks: List of Chunk objects
-            batch_size: Batch size for encoding
-            show_progress: Whether to show progress bar
-            
-        Returns:
-            NumPy array of shape (n_chunks, embedding_dim)
         """
         if not chunks:
             return np.array([])
@@ -106,6 +75,12 @@ class FinancialEmbedder:
         # Generate embeddings
         embeddings = self._encode_texts(texts, batch_size, show_progress)
         
+        if len(embeddings) == 0 and len(chunks) > 0:
+            raise ValueError("Embedding generation failed. Check API key and model status.")
+
+        if len(embeddings) != len(chunks):
+            raise ValueError(f"Mismatch: {len(chunks)} chunks but {len(embeddings)} embeddings.")
+
         # Cache results
         if self.cache_dir:
             self._save_to_cache(cache_key, embeddings)
@@ -119,14 +94,6 @@ class FinancialEmbedder:
     def encode_query(self, query: str) -> np.ndarray:
         """
         Generate embedding for a search query.
-        
-        Uses query instruction prefix for better retrieval with BGE models.
-        
-        Args:
-            query: Query string
-            
-        Returns:
-            NumPy array of shape (embedding_dim,)
         """
         # Add instruction for BGE models
         if "bge" in self.model_name.lower():
@@ -139,13 +106,6 @@ class FinancialEmbedder:
                        batch_size: int = 32) -> np.ndarray:
         """
         Generate embeddings for multiple queries.
-        
-        Args:
-            queries: List of query strings
-            batch_size: Batch size for encoding
-            
-        Returns:
-            NumPy array of shape (n_queries, embedding_dim)
         """
         # Add instruction for BGE models
         if "bge" in self.model_name.lower():
@@ -153,23 +113,37 @@ class FinancialEmbedder:
         
         return self._encode_texts(queries, batch_size, show_progress=False)
     
-    def _encode_texts(self,
-                      texts: List[str],
-                      batch_size: int,
-                      show_progress: bool) -> np.ndarray:
-        """Internal method to encode texts."""
-        if self.model is None:
-            # Mock embeddings for testing without model
-            return self._mock_encode(texts)
+    def _encode_texts(self, texts: List[str], batch_size: int, show_progress: bool) -> np.ndarray:
+        all_embeddings = []
         
-        embeddings = self.model.encode(
-            texts,
-            batch_size=batch_size,
-            show_progress_bar=show_progress,
-            normalize_embeddings=self.normalize
-        )
+        # Process in batches
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            try:
+                # Use feature extraction API
+                embeddings = self.client.feature_extraction(
+                    text=batch,
+                    model=self.model_name
+                )
+                
+                if isinstance(embeddings, list):
+                    embeddings = np.array(embeddings)
+                
+                # BGE model returns normalized embeddings usually, but we can re-normalize
+                if self.normalize:
+                    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+                    embeddings = embeddings / np.maximum(norms, 1e-9)
+                    
+                all_embeddings.append(embeddings)
+                
+            except Exception as e:
+                logger.error(f"Error calling HF Embedding API: {e}")
+                return np.array([])
         
-        return np.array(embeddings)
+        if not all_embeddings:
+            return np.array([])
+            
+        return np.vstack(all_embeddings)
     
     def _mock_encode(self, texts: List[str]) -> np.ndarray:
         """Generate mock embeddings for testing."""
@@ -212,73 +186,27 @@ class FinancialEmbedder:
             np.save(cache_path, embeddings)
         except Exception as e:
             logger.warning(f"Failed to save cache: {e}")
-    
-    def similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        """
-        Calculate cosine similarity between two embeddings.
-        
-        Args:
-            embedding1: First embedding
-            embedding2: Second embedding
             
-        Returns:
-            Cosine similarity score
-        """
-        if self.normalize:
-            return float(np.dot(embedding1, embedding2))
-        else:
-            norm1 = np.linalg.norm(embedding1)
-            norm2 = np.linalg.norm(embedding2)
-            if norm1 == 0 or norm2 == 0:
-                return 0.0
-            return float(np.dot(embedding1, embedding2) / (norm1 * norm2))
+    def similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
+        """Calculate cosine similarity."""
+        return float(np.dot(embedding1, embedding2))
     
     def batch_similarity(self,
                          query_embedding: np.ndarray,
                          chunk_embeddings: np.ndarray) -> np.ndarray:
-        """
-        Calculate similarity between a query and multiple chunk embeddings.
-        
-        Args:
-            query_embedding: Query embedding of shape (embedding_dim,)
-            chunk_embeddings: Chunk embeddings of shape (n_chunks, embedding_dim)
-            
-        Returns:
-            Similarity scores of shape (n_chunks,)
-        """
-        if self.normalize:
-            return np.dot(chunk_embeddings, query_embedding)
-        else:
-            query_norm = np.linalg.norm(query_embedding)
-            chunk_norms = np.linalg.norm(chunk_embeddings, axis=1)
-            
-            # Avoid division by zero
-            chunk_norms = np.maximum(chunk_norms, 1e-9)
-            
-            dot_products = np.dot(chunk_embeddings, query_embedding)
-            return dot_products / (chunk_norms * query_norm)
+        """Calculate batch similarity."""
+        return np.dot(chunk_embeddings, query_embedding)
 
 
 class CachedEmbedder(FinancialEmbedder):
     """
-    Embedder with persistent caching.
-    
-    Stores embeddings in a SQLite database for efficient
-    lookup across sessions.
+    Embedder with persistent caching (SQLite).
     """
     
     def __init__(self,
                  model_name: str = None,
                  cache_db: str = "embeddings_cache.db",
                  **kwargs):
-        """
-        Initialize cached embedder.
-        
-        Args:
-            model_name: Name of the embedding model
-            cache_db: Path to SQLite database for caching
-            **kwargs: Additional arguments for FinancialEmbedder
-        """
         super().__init__(model_name=model_name, **kwargs)
         self.cache_db = cache_db
         self._init_cache_db()
@@ -286,10 +214,8 @@ class CachedEmbedder(FinancialEmbedder):
     def _init_cache_db(self):
         """Initialize the cache database."""
         import sqlite3
-        
         conn = sqlite3.connect(self.cache_db)
         cursor = conn.cursor()
-        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS embeddings_cache (
                 text_hash TEXT PRIMARY KEY,
@@ -298,27 +224,21 @@ class CachedEmbedder(FinancialEmbedder):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        
         conn.commit()
         conn.close()
     
     def _get_cached_embedding(self, text: str) -> Optional[np.ndarray]:
         """Get embedding from cache if it exists."""
         import sqlite3
-        
         text_hash = hashlib.md5(text.encode()).hexdigest()
-        
         conn = sqlite3.connect(self.cache_db)
         cursor = conn.cursor()
-        
         cursor.execute(
             'SELECT embedding FROM embeddings_cache WHERE text_hash = ? AND model_name = ?',
             (text_hash, self.model_name)
         )
-        
         result = cursor.fetchone()
         conn.close()
-        
         if result:
             return pickle.loads(result[0])
         return None
@@ -326,18 +246,14 @@ class CachedEmbedder(FinancialEmbedder):
     def _cache_embedding(self, text: str, embedding: np.ndarray):
         """Cache an embedding."""
         import sqlite3
-        
         text_hash = hashlib.md5(text.encode()).hexdigest()
         embedding_blob = pickle.dumps(embedding)
-        
         conn = sqlite3.connect(self.cache_db)
         cursor = conn.cursor()
-        
         cursor.execute('''
             INSERT OR REPLACE INTO embeddings_cache (text_hash, embedding, model_name)
             VALUES (?, ?, ?)
         ''', (text_hash, embedding_blob, self.model_name))
-        
         conn.commit()
         conn.close()
 
@@ -345,17 +261,7 @@ class CachedEmbedder(FinancialEmbedder):
 def create_embedder(model_name: str = None,
                     cache_dir: str = None,
                     use_db_cache: bool = False) -> FinancialEmbedder:
-    """
-    Factory function to create an embedder.
-    
-    Args:
-        model_name: Name of the embedding model
-        cache_dir: Directory for file caching
-        use_db_cache: Whether to use SQLite database caching
-        
-    Returns:
-        FinancialEmbedder or CachedEmbedder instance
-    """
+    """Factory function."""
     if use_db_cache:
         return CachedEmbedder(model_name=model_name)
     else:

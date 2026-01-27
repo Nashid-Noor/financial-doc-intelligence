@@ -131,7 +131,9 @@ class NumericalReasoner:
         question_lower = question.lower()
         
         for keyword, op_type in self.CALCULATION_KEYWORDS.items():
-            if keyword in question_lower:
+            # Use regex for word boundary to avoid partial matches (e.g. "sum" in "summarize")
+            pattern = f"\\b{re.escape(keyword)}\\b"
+            if re.search(pattern, question_lower):
                 return True, op_type
         
         # Check for comparison patterns
