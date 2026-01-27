@@ -182,8 +182,8 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     
     app = FastAPI(
-        title="Financial Document Intelligence API",
-        description="RAG-powered Q&A system for SEC filings and financial documents",
+        title="Document Intelligence API",
+        description="RAG-powered Q&A system for complex documents",
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc"
@@ -212,7 +212,7 @@ app = create_app()
 async def root():
     """Root endpoint with API information."""
     return {
-        "name": "Financial Document Intelligence API",
+        "name": "Document Intelligence API",
         "version": "1.0.0",
         "docs": "/docs"
     }
@@ -240,7 +240,7 @@ async def upload_document(
     background_tasks: BackgroundTasks = None
 ):
     """
-    Upload and process a financial document.
+    Upload and process a document.
     
     Supported formats: PDF
     
@@ -457,7 +457,7 @@ def _generate_mock_answer(question: str, chunks: List[Chunk], reasoning: List[st
     
     # Build mock answer
     answer_parts = [
-        f"Based on the financial documents provided, "
+        f"Based on the documents provided, "
     ]
     
     # Add some context from chunks
@@ -546,7 +546,7 @@ async def get_stats():
 if __name__ == "__main__":
     import uvicorn
     
-    logger.info("Starting Financial Document Intelligence API")
+    logger.info("Starting Document Intelligence API")
     uvicorn.run(
         "app:app",
         host="0.0.0.0",
